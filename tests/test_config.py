@@ -5,11 +5,12 @@ import pytest
 from api.config import Settings
 
 
-def test_settings_default_values() -> None:
-    # Clear any SC_ prefixed environment variables to test defaults
+def test_settings_default_values(monkeypatch: pytest.MonkeyPatch) -> None:
+    # Clear SC_ prefixed environment variables to test defaults safely
+
     for key in list(os.environ.keys()):
         if key.startswith("SC_"):
-            del os.environ[key]
+            monkeypatch.delenv(key, raising=False)
 
     settings = Settings()
     assert settings.app_name == "Signal Classifier API"

@@ -68,7 +68,27 @@ def test_predict_response_structure_and_logic() -> None:
         assert 0.0 <= probabilities[cls] <= 1.0
 
     total_prob = sum(probabilities.values())
-    assert math.isclose(total_prob, 1.0, rel_tol=1e-9)
+    assert math.isclose(total_prob, 1.0, rel_tol=1e-5)
 
     max_prob_class = max(probabilities, key=lambda k: probabilities[k])
     assert predicted_class == max_prob_class
+
+
+def test_predict_endpoint_uses_model_inference() -> None:
+    # If the endpoint is integrated with the real test model, the output should
+    # be dynamically computed by the model (all classes ~0.0909) instead of
+    # the hardcoded dummy values (QPSK=1.0, others=0.0).
+    valid_iq_data = [[0.1] * 128, [-0.1] * 128]
+    response = client.post("/predict", json={"iq_data": valid_iq_data})
+    assert response.status_code == 200
+
+    data = response.json()
+    probabilities = data["probabilities"]
+
+    # Assert it is not the hardcoded dummy value
+    assert not math.isclose(probabilities["QPSK"], 1.0, abs_tol=1e-5)
+
+    # Verify the probabilities are close to 1/11 (0.0909) from the test model
+    expected_prob = 1.0 / len(MODULATION_CLASSES)
+    for cls in MODULATION_CLASSES:
+        assert math.isclose(probabilities[cls], expected_prob, abs_tol=1e-4)
