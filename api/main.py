@@ -1,5 +1,7 @@
 import time
+
 from fastapi import FastAPI
+
 from api.config import Settings
 from api.routes.health import router as health_router
 

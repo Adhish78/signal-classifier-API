@@ -166,4 +166,5 @@ data/
 .scratch/
 skills-lock.json
 AGENTS.md
-
+CONTEXT.md
+docs/
