@@ -1,0 +1,18 @@
+[tool.pytest.ini_options]
+filterwarnings = [
+    "ignore:.*Using `httpx` with `starlette.testclient` is deprecated.*:DeprecationWarning",
+    "ignore:.*Using `httpx` with `starlette.testclient` is deprecated.*:UserWarning",
+]
+
+[tool.ruff]
+line-length = 88
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "UP", "B", "A", "C4", "RET", "SIM", "ARG", "PTH", "ERA", "PL", "RUF"]
+ignore = []
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+ignore_missing_imports = true

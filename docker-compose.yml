@@ -1,0 +1,13 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - SC_PORT=8000
+      - SC_HOST=0.0.0.0
+    # Add .env support, but keep it optional in case it does not exist
+    env_file:
+      - .env
