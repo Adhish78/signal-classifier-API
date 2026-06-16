@@ -1,9 +1,11 @@
 import os
 
+import pytest
+
 from api.config import Settings
 
 
-def test_settings_default_values():
+def test_settings_default_values() -> None:
     # Clear any SC_ prefixed environment variables to test defaults
     for key in list(os.environ.keys()):
         if key.startswith("SC_"):
@@ -16,7 +18,7 @@ def test_settings_default_values():
     assert settings.model_path == "models/classifier.onnx"
 
 
-def test_settings_from_env(monkeypatch):
+def test_settings_from_env(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("SC_APP_NAME", "Custom Signal API")
     monkeypatch.setenv("SC_HOST", "127.0.0.1")
     monkeypatch.setenv("SC_PORT", "9090")
