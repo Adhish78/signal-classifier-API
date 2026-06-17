@@ -14,19 +14,11 @@ def get_metrics(request: Request) -> dict[str, float | int]:
 
     return {
         "uptime_seconds": uptime,
-        "total_predictions": getattr(
-            app_state, "total_predictions", 0
-        ),
-        "failed_predictions": getattr(
-            app_state, "failed_predictions", 0
-        ),
+        "total_predictions": getattr(app_state, "total_predictions", 0),
+        "failed_predictions": getattr(app_state, "failed_predictions", 0),
         "average_inference_time_ms": getattr(
             app_state, "average_inference_time_ms", 0.0
         ),
-        "min_inference_time_ms": getattr(
-            app_state, "min_inference_time_ms", 0.0
-        ),
-        "max_inference_time_ms": getattr(
-            app_state, "max_inference_time_ms", 0.0
-        ),
+        "min_inference_time_ms": getattr(app_state, "min_inference_time_ms", 0.0),
+        "max_inference_time_ms": getattr(app_state, "max_inference_time_ms", 0.0),
     }

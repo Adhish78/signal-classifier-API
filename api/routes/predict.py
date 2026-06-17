@@ -25,7 +25,7 @@ def predict(request: Request, prediction_request: PredictionRequest) -> dict[str
         request.app.state.inference_engine = InferenceEngine(settings.model_path)
 
     engine = request.app.state.inference_engine
-    
+
     app_state = request.app.state
     try:
         start_time = perf_counter()
@@ -41,10 +41,10 @@ def predict(request: Request, prediction_request: PredictionRequest) -> dict[str
         old_total = app_state.total_predictions
         old_failed = app_state.failed_predictions
         old_success = old_total - old_failed
-        
+
         new_success = old_success + 1
         app_state.total_predictions += 1
-        
+
         if old_success == 0:
             app_state.average_inference_time_ms = latency_ms
             app_state.min_inference_time_ms = latency_ms

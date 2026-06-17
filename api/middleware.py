@@ -20,9 +20,9 @@ class JSONFormatter(logging.Formatter):
             log_data = {"message": record.getMessage()}
 
         if "timestamp" not in log_data:
-            log_data["timestamp"] = (
-                datetime.fromtimestamp(record.created, tz=UTC).isoformat()
-            )
+            log_data["timestamp"] = datetime.fromtimestamp(
+                record.created, tz=UTC
+            ).isoformat()
         if "level" not in log_data:
             log_data["level"] = record.levelname
         if "logger" not in log_data:

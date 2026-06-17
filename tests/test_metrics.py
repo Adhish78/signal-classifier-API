@@ -92,6 +92,7 @@ def test_metrics_accumulation_and_failures(monkeypatch: pytest.MonkeyPatch) -> N
 
     def mock_predict(*_args: Any, **_kwargs: Any) -> Any:
         raise RuntimeError("simulated inference failure")
+
     monkeypatch.setattr(engine, "predict", mock_predict)
 
     resp3 = client.post("/predict", json={"iq_data": valid_iq_data})
