@@ -47,12 +47,10 @@ def test_normalization_logic(tmp_path: Path) -> None:
         stds = np.std(x, axis=2)  # shape (N, 2)
 
         # Verify means are close to 0 and stds are close to 1
-        assert np.allclose(
-            means, 0.0, atol=1e-5
-        ), f"Means not close to 0 in {split_name}"
-        assert np.allclose(
-            stds, 1.0, atol=1e-5
-        ), f"Stds not close to 1 in {split_name}"
+        assert np.allclose(means, 0.0, atol=1e-5), (
+            f"Means not close to 0 in {split_name}"
+        )
+        assert np.allclose(stds, 1.0, atol=1e-5), f"Stds not close to 1 in {split_name}"
 
 
 def test_stratified_splitting(tmp_path: Path) -> None:

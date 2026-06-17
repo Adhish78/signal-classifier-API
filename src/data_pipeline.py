@@ -52,7 +52,6 @@ def load_and_split_data(
         # Load dataset dictionary using latin1 encoding
         data = pickle.load(f, encoding="latin1")
 
-
     # Set random seed for reproducibility
     rng = np.random.default_rng(seed)
 

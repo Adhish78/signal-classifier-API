@@ -57,5 +57,3 @@ class SignalClassifier(nn.Module):
         x = self.global_pool(x)
         x = x.squeeze(-1)  # Flatten (batch_size, 256, 1) to (batch_size, 256)
         return cast(torch.Tensor, self.head(x))
-
-
