@@ -19,9 +19,7 @@ from src.data_pipeline import MODULATION_CLASSES, load_and_split_data
 from src.inference import InferenceEngine
 
 
-def _compute_metrics(
-    y_test: np.ndarray, predictions: np.ndarray
-) -> dict[str, float]:
+def _compute_metrics(y_test: np.ndarray, predictions: np.ndarray) -> dict[str, float]:
     """
     Computes summary classification metrics.
     """
@@ -103,9 +101,7 @@ def _save_local_reports(
         for i, class_name in enumerate(MODULATION_CLASSES):
             class_snr_mask = (snr_test == snr) & (y_test == i)
             if np.any(class_snr_mask):
-                c_acc = np.mean(
-                    predictions[class_snr_mask] == y_test[class_snr_mask]
-                )
+                c_acc = np.mean(predictions[class_snr_mask] == y_test[class_snr_mask])
                 per_class_accs[class_name].append(c_acc)
             else:
                 per_class_accs[class_name].append(np.nan)
@@ -274,10 +270,7 @@ def main() -> None:
         "--run-id",
         type=str,
         default=None,
-        help=(
-            "Optional MLflow run ID to attach evaluation metrics "
-            "and artifacts."
-        ),
+        help=("Optional MLflow run ID to attach evaluation metrics and artifacts."),
     )
 
     args = parser.parse_args()
