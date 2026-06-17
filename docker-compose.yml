@@ -8,6 +8,21 @@ services:
     environment:
       - SC_PORT=8000
       - SC_HOST=0.0.0.0
+      - MLFLOW_TRACKING_URI=http://mlflow:5000
     # Add .env support, but keep it optional in case it does not exist
     env_file:
       - .env
+    depends_on:
+      - mlflow
+
+  mlflow:
+    image: ghcr.io/mlflow/mlflow:v2.11.3
+    ports:
+      - "5000:5000"
+    volumes:
+      - mlflow_data:/mlflow
+    command: mlflow server --host 0.0.0.0 --port 5000 --backend-store-uri sqlite:///mlflow/mlflow.db --default-artifact-root /mlflow/artifacts
+
+volumes:
+  mlflow_data:
+

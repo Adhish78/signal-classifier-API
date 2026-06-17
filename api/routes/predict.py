@@ -1,3 +1,4 @@
+from time import perf_counter
 from typing import Any
 
 import numpy as np
@@ -24,7 +25,42 @@ def predict(request: Request, prediction_request: PredictionRequest) -> dict[str
         request.app.state.inference_engine = InferenceEngine(settings.model_path)
 
     engine = request.app.state.inference_engine
-    output = engine.predict(iq_data_batched)
+
+    app_state = request.app.state
+    try:
+        start_time = perf_counter()
+        output = engine.predict(iq_data_batched)
+        latency_ms = (perf_counter() - start_time) * 1000.0
+    except Exception:
+        if hasattr(app_state, "total_predictions"):
+            app_state.total_predictions += 1
+            app_state.failed_predictions += 1
+        raise
+
+    if hasattr(app_state, "total_predictions"):
+        old_total = app_state.total_predictions
+        old_failed = app_state.failed_predictions
+        old_success = old_total - old_failed
+
+        new_success = old_success + 1
+        app_state.total_predictions += 1
+
+        if old_success == 0:
+            app_state.average_inference_time_ms = latency_ms
+            app_state.min_inference_time_ms = latency_ms
+            app_state.max_inference_time_ms = latency_ms
+        else:
+            old_avg = app_state.average_inference_time_ms
+            app_state.average_inference_time_ms = (
+                old_avg + (latency_ms - old_avg) / new_success
+            )
+            app_state.min_inference_time_ms = min(
+                app_state.min_inference_time_ms, latency_ms
+            )
+            app_state.max_inference_time_ms = max(
+                app_state.max_inference_time_ms, latency_ms
+            )
+
     probabilities_list = output[0]
 
     # Map the probability outputs to modulation class labels
