@@ -4,16 +4,14 @@ import json
 import logging
 import os
 import shutil
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, cast
+from typing import cast
 
 import mlflow
 import torch
 import torch.export
-import torch.nn as nn
-
-import torch.optim as optim
+from torch import nn, optim
 from torch.utils.data import DataLoader
 
 from src.data_pipeline import MODULATION_CLASSES, SignalDataset, load_and_split_data
@@ -42,7 +40,7 @@ class ONNXWrapper(nn.Module):
         return cast(torch.Tensor, self.softmax(logits))
 
 
-def train_model(
+def train_model(  # noqa: PLR0913, PLR0915
     data_path: str,
     epochs: int,
     batch_size: int,
@@ -143,9 +141,10 @@ def train_model(
             correct_train = 0
             total_train = 0
 
-            for inputs, targets in train_loader:
-                inputs, targets = inputs.to(device), targets.to(device)
+            for batch_x, batch_y in train_loader:
+                inputs, targets = batch_x.to(device), batch_y.to(device)
                 optimizer.zero_grad()
+
                 outputs = model(inputs)
                 loss = criterion(outputs, targets)
                 loss.backward()
@@ -156,7 +155,7 @@ def train_model(
                 total_train += targets.size(0)
                 correct_train += predicted.eq(targets).sum().item()
 
-            epoch_train_loss = train_loss / len(train_loader.dataset)
+            epoch_train_loss = train_loss / len(train_dataset)
             epoch_train_acc = correct_train / total_train
 
             # Validation phase
@@ -166,9 +165,10 @@ def train_model(
             total_val = 0
 
             with torch.no_grad():
-                for inputs, targets in val_loader:
-                    inputs, targets = inputs.to(device), targets.to(device)
+                for batch_x, batch_y in val_loader:
+                    inputs, targets = batch_x.to(device), batch_y.to(device)
                     outputs = model(inputs)
+
                     loss = criterion(outputs, targets)
 
                     val_loss += loss.item() * inputs.size(0)
@@ -176,11 +176,12 @@ def train_model(
                     total_val += targets.size(0)
                     correct_val += predicted.eq(targets).sum().item()
 
-            epoch_val_loss = val_loss / len(val_loader.dataset)
+            epoch_val_loss = val_loss / len(val_dataset)
             epoch_val_acc = correct_val / total_val
 
             logger.info(
-                "Epoch %d/%d - Train Loss: %.4f, Train Acc: %.4f, Val Loss: %.4f, Val Acc: %.4f",
+                "Epoch %d/%d - Train Loss: %.4f, Train Acc: %.4f, "
+                "Val Loss: %.4f, Val Acc: %.4f",
                 epoch,
                 epochs,
                 epoch_train_loss,
@@ -207,16 +208,19 @@ def train_model(
                 epochs_no_improve += 1
                 if epochs_no_improve >= patience:
                     logger.info(
-                        "Early stopping triggered. Validation loss has not improved for %d epochs.",
+                        "Early stopping triggered. "
+                        "Validation loss has not improved for %d epochs.",
                         patience,
                     )
                     break
 
         logger.info(
-            "Training completed. Restoring best model weights from epoch %d (Val Loss: %.4f)",
+            "Training completed. Restoring best model weights from "
+            "epoch %d (Val Loss: %.4f)",
             best_epoch,
             best_loss,
         )
+
         model.load_state_dict(best_model_weights)
 
         # Final evaluation on the test set
@@ -226,9 +230,10 @@ def train_model(
         total_test = 0
 
         with torch.no_grad():
-            for inputs, targets in test_loader:
-                inputs, targets = inputs.to(device), targets.to(device)
+            for batch_x, batch_y in test_loader:
+                inputs, targets = batch_x.to(device), batch_y.to(device)
                 outputs = model(inputs)
+
                 loss = criterion(outputs, targets)
 
                 test_loss += loss.item() * inputs.size(0)
@@ -236,7 +241,7 @@ def train_model(
                 total_test += targets.size(0)
                 correct_test += predicted.eq(targets).sum().item()
 
-        final_test_loss = test_loss / len(test_loader.dataset)
+        final_test_loss = test_loss / len(test_dataset)
         final_test_acc = correct_test / total_test
 
         logger.info(
@@ -257,7 +262,10 @@ def train_model(
         output_path.mkdir(parents=True, exist_ok=True)
 
         onnx_file_path = output_path / "model.onnx"
-        logger.info("Exporting best model checkpoint to ONNX format at %s", onnx_file_path)
+        logger.info(
+            "Exporting best model checkpoint to ONNX format at %s",
+            onnx_file_path,
+        )
 
         export_model = ONNXWrapper(model)
         export_model.to(device)
@@ -268,7 +276,6 @@ def train_model(
 
         batch_dim = torch.export.Dim("batch_size", min=1)
         dynamic_shapes = {"x": {0: batch_dim}}
-
 
         torch.onnx.export(
             export_model,
@@ -283,8 +290,6 @@ def train_model(
             dynamo=True,
         )
 
-
-
         # Generate metadata.json
         metadata = {
             "model_version": "1.0.0",
@@ -292,14 +297,12 @@ def train_model(
             "classes": MODULATION_CLASSES,
             "input_shape": [2, 128],
             "training_accuracy": float(best_val_acc),
-            "date_of_training": datetime.now(timezone.utc).strftime(
-                "%Y-%m-%dT%H:%M:%SZ"
-            ),
+            "date_of_training": datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
         }
 
         metadata_file_path = output_path / "metadata.json"
         logger.info("Generating metadata.json at %s", metadata_file_path)
-        with open(metadata_file_path, "w", encoding="utf-8") as f:
+        with metadata_file_path.open("w", encoding="utf-8") as f:
             json.dump(metadata, f, indent=4)
 
         # Log artifacts to MLflow
@@ -309,7 +312,10 @@ def train_model(
         # Copy model.onnx to classifier.onnx for default API config compatibility
         classifier_file_path = output_path / "classifier.onnx"
         shutil.copy2(onnx_file_path, classifier_file_path)
-        logger.info("Copied model.onnx to %s for API compatibility", classifier_file_path)
+        logger.info(
+            "Copied model.onnx to %s for API compatibility",
+            classifier_file_path,
+        )
 
 
 def main() -> None:
