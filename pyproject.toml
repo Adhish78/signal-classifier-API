@@ -2,6 +2,7 @@
 filterwarnings = [
     "ignore:.*Using `httpx` with `starlette.testclient` is deprecated.*:DeprecationWarning",
     "ignore:.*Using `httpx` with `starlette.testclient` is deprecated.*:UserWarning",
+    "ignore:.*isinstance.*LeafSpec.*is deprecated.*:FutureWarning",
 ]
 
 [tool.ruff]
