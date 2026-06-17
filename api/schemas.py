@@ -49,10 +49,22 @@ class PredictionResponse(BaseModel):
 
 
 class PredictionMetrics(BaseModel):
-    uptime_seconds: float = Field(..., description="Uptime of the service in seconds")
-    total_predictions: int = Field(..., description="Total number of prediction requests processed")
-    failed_predictions: int = Field(..., description="Total number of failed prediction requests")
-    average_inference_time_ms: float = Field(..., description="Average inference execution time in milliseconds")
-    min_inference_time_ms: float = Field(..., description="Minimum inference execution time in milliseconds")
-    max_inference_time_ms: float = Field(..., description="Maximum inference execution time in milliseconds")
+    uptime_seconds: float = Field(
+        ..., description="Uptime of the service in seconds"
+    )
+    total_predictions: int = Field(
+        ..., description="Total number of prediction requests processed"
+    )
+    failed_predictions: int = Field(
+        ..., description="Total number of failed prediction requests"
+    )
+    average_inference_time_ms: float = Field(
+        ..., description="Average inference execution time in milliseconds"
+    )
+    min_inference_time_ms: float = Field(
+        ..., description="Minimum inference execution time in milliseconds"
+    )
+    max_inference_time_ms: float = Field(
+        ..., description="Maximum inference execution time in milliseconds"
+    )
 

@@ -1,5 +1,7 @@
 import json
 import logging
+
+import pytest
 from fastapi.testclient import TestClient
 
 from api.main import app
@@ -7,7 +9,7 @@ from api.main import app
 client = TestClient(app, raise_server_exceptions=False)
 
 
-def test_json_logging_middleware(caplog) -> None:
+def test_json_logging_middleware(caplog: pytest.LogCaptureFixture) -> None:
     # Set logging level to capture INFO messages
     caplog.set_level(logging.INFO)
 

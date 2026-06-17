@@ -1,3 +1,6 @@
+from collections.abc import Generator
+from typing import Any
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -10,7 +13,7 @@ client = TestClient(app, raise_server_exceptions=False)
 
 
 @pytest.fixture(autouse=True)
-def reset_metrics():
+def reset_metrics() -> Generator[None, None, None]:
     app.state.total_predictions = 0
     app.state.failed_predictions = 0
     app.state.average_inference_time_ms = 0.0
@@ -53,7 +56,7 @@ def test_metrics_updated_on_prediction() -> None:
     assert metrics["average_inference_time_ms"] == metrics["max_inference_time_ms"]
 
 
-def test_metrics_accumulation_and_failures(monkeypatch) -> None:
+def test_metrics_accumulation_and_failures(monkeypatch: pytest.MonkeyPatch) -> None:
     valid_iq_data = [[0.1] * 128, [-0.1] * 128]
 
     # Mock api.routes.predict.perf_counter to return deterministic values:
@@ -86,7 +89,8 @@ def test_metrics_accumulation_and_failures(monkeypatch) -> None:
     # 3. Third prediction - simulated failure
     monkeypatch.setattr("api.routes.predict.perf_counter", lambda: 30.0)
     engine = app.state.inference_engine
-    def mock_predict(*args, **kwargs):
+
+    def mock_predict(*_args: Any, **_kwargs: Any) -> Any:
         raise RuntimeError("simulated inference failure")
     monkeypatch.setattr(engine, "predict", mock_predict)
 

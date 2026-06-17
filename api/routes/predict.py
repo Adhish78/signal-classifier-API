@@ -51,9 +51,15 @@ def predict(request: Request, prediction_request: PredictionRequest) -> dict[str
             app_state.max_inference_time_ms = latency_ms
         else:
             old_avg = app_state.average_inference_time_ms
-            app_state.average_inference_time_ms = old_avg + (latency_ms - old_avg) / new_success
-            app_state.min_inference_time_ms = min(app_state.min_inference_time_ms, latency_ms)
-            app_state.max_inference_time_ms = max(app_state.max_inference_time_ms, latency_ms)
+            app_state.average_inference_time_ms = (
+                old_avg + (latency_ms - old_avg) / new_success
+            )
+            app_state.min_inference_time_ms = min(
+                app_state.min_inference_time_ms, latency_ms
+            )
+            app_state.max_inference_time_ms = max(
+                app_state.max_inference_time_ms, latency_ms
+            )
 
     probabilities_list = output[0]
 

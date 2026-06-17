@@ -5,11 +5,11 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 
 from api.config import Settings
+from api.middleware import StructuredLoggingMiddleware, setup_logging
 from api.routes.health import router as health_router
 from api.routes.metadata import router as metadata_router
-from api.routes.predict import router as predict_router
 from api.routes.metrics import router as metrics_router
-from api.middleware import StructuredLoggingMiddleware, setup_logging
+from api.routes.predict import router as predict_router
 from src.inference import InferenceEngine
 
 # Configure JSON structured logging globally

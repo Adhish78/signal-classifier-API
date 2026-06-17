@@ -1,8 +1,9 @@
 import json
 import logging
-import time
 import sys
-from datetime import datetime, timezone
+import time
+from datetime import UTC, datetime
+
 from fastapi import Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 
@@ -19,7 +20,9 @@ class JSONFormatter(logging.Formatter):
             log_data = {"message": record.getMessage()}
 
         if "timestamp" not in log_data:
-            log_data["timestamp"] = datetime.fromtimestamp(record.created, tz=timezone.utc).isoformat()
+            log_data["timestamp"] = (
+                datetime.fromtimestamp(record.created, tz=UTC).isoformat()
+            )
         if "level" not in log_data:
             log_data["level"] = record.levelname
         if "logger" not in log_data:
@@ -29,9 +32,11 @@ class JSONFormatter(logging.Formatter):
 
 
 class StructuredLoggingMiddleware(BaseHTTPMiddleware):
-    async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
+    async def dispatch(
+        self, request: Request, call_next: RequestResponseEndpoint
+    ) -> Response:
         start_time = time.perf_counter()
-        timestamp = datetime.now(timezone.utc).isoformat()
+        timestamp = datetime.now(UTC).isoformat()
 
         response = await call_next(request)
 
