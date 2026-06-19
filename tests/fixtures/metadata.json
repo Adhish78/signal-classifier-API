@@ -1,0 +1,23 @@
+{
+    "model_version": "1.0.0",
+    "framework": "ONNX",
+    "classes": [
+        "8PSK",
+        "AM-DSB",
+        "AM-SSB",
+        "BPSK",
+        "CPFSK",
+        "GFSK",
+        "PAM4",
+        "QAM16",
+        "QAM64",
+        "QPSK",
+        "WBFM"
+    ],
+    "input_shape": [
+        2,
+        128
+    ],
+    "training_accuracy": 0.762,
+    "date_of_training": "2026-06-15T19:54:24Z"
+}
