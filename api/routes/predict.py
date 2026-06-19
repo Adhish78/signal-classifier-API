@@ -1,3 +1,4 @@
+import threading
 from time import perf_counter
 from typing import Any
 
@@ -10,6 +11,13 @@ from api.schemas import PredictionRequest, PredictionResponse
 from src.inference import InferenceEngine
 
 router = APIRouter()
+
+# Thread lock to serialize telemetry metrics updates on request.app.state.
+# Since FastAPI runs synchronous route handlers (def predict) in a shared
+# threadpool, concurrent requests can cause race conditions (e.g., lost
+# updates or corrupted averages). We use this lock to synchronize telemetry
+# operations and ensure thread safety.
+metrics_lock = threading.Lock()
 
 
 @router.post("/predict", response_model=PredictionResponse)
@@ -32,34 +40,36 @@ def predict(request: Request, prediction_request: PredictionRequest) -> dict[str
         output = engine.predict(iq_data_batched)
         latency_ms = (perf_counter() - start_time) * 1000.0
     except Exception:
-        if hasattr(app_state, "total_predictions"):
-            app_state.total_predictions += 1
-            app_state.failed_predictions += 1
+        with metrics_lock:
+            if hasattr(app_state, "total_predictions"):
+                app_state.total_predictions += 1
+                app_state.failed_predictions += 1
         raise
 
-    if hasattr(app_state, "total_predictions"):
-        old_total = app_state.total_predictions
-        old_failed = app_state.failed_predictions
-        old_success = old_total - old_failed
+    with metrics_lock:
+        if hasattr(app_state, "total_predictions"):
+            old_total = app_state.total_predictions
+            old_failed = app_state.failed_predictions
+            old_success = old_total - old_failed
 
-        new_success = old_success + 1
-        app_state.total_predictions += 1
+            new_success = old_success + 1
+            app_state.total_predictions += 1
 
-        if old_success == 0:
-            app_state.average_inference_time_ms = latency_ms
-            app_state.min_inference_time_ms = latency_ms
-            app_state.max_inference_time_ms = latency_ms
-        else:
-            old_avg = app_state.average_inference_time_ms
-            app_state.average_inference_time_ms = (
-                old_avg + (latency_ms - old_avg) / new_success
-            )
-            app_state.min_inference_time_ms = min(
-                app_state.min_inference_time_ms, latency_ms
-            )
-            app_state.max_inference_time_ms = max(
-                app_state.max_inference_time_ms, latency_ms
-            )
+            if old_success == 0:
+                app_state.average_inference_time_ms = latency_ms
+                app_state.min_inference_time_ms = latency_ms
+                app_state.max_inference_time_ms = latency_ms
+            else:
+                old_avg = app_state.average_inference_time_ms
+                app_state.average_inference_time_ms = (
+                    old_avg + (latency_ms - old_avg) / new_success
+                )
+                app_state.min_inference_time_ms = min(
+                    app_state.min_inference_time_ms, latency_ms
+                )
+                app_state.max_inference_time_ms = max(
+                    app_state.max_inference_time_ms, latency_ms
+                )
 
     probabilities_list = output[0]
 
