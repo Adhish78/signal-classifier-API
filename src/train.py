@@ -15,6 +15,7 @@ from torch import nn, optim
 from torch.utils.data import DataLoader
 
 from src.data_pipeline import MODULATION_CLASSES, SignalDataset, load_and_split_data
+from src.evaluate import evaluate_model
 from src.model import SignalClassifier
 
 # Set up logging
@@ -316,6 +317,24 @@ def train_model(  # noqa: PLR0913, PLR0915
             "Copied model.onnx to %s for API compatibility",
             classifier_file_path,
         )
+
+        # Trigger model evaluation reporting automatically
+        logger.info("Automatically running evaluation pipeline on the test set...")
+        try:
+            reports_dir = Path("reports")
+            evaluate_model(
+                model_path=str(classifier_file_path),
+                data_path=data_path,
+                output_dir=str(reports_dir),
+                experiment_name=experiment_name,
+                run_id=run.info.run_id,
+            )
+            logger.info(
+                "Evaluation pipeline completed successfully. "
+                "Plots and metrics uploaded to MLflow."
+            )
+        except Exception as e:
+            logger.exception("Failed to run automated evaluation pipeline: %s", e)
 
 
 def main() -> None:
