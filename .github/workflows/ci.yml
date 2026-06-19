@@ -31,9 +31,23 @@ jobs:
 
     - name: Type check with mypy
       run: |
-        mypy api
+        mypy api src
+
+    - name: Model sanity check
+      run: |
+        PYTHONPATH=. python -c "from src.inference import InferenceEngine; import numpy as np; engine = InferenceEngine('tests/fixtures/test_model.onnx'); out = engine.predict(np.random.randn(1, 2, 128)); assert out.shape == (1, 11); print('Model sanity check passed successfully!')"
 
     - name: Run tests with pytest
       run: |
-        python -m pytest
+        PYTHONPATH=. python -m pytest
+
+  docker-build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Build Docker Image
+      run: docker build -t signal-classifier-api:test .
+
 
