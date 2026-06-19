@@ -14,6 +14,9 @@ services:
       - .env
     depends_on:
       - mlflow
+    volumes:
+      - ./models:/app/models
+
 
   mlflow:
     image: ghcr.io/mlflow/mlflow:v2.11.3

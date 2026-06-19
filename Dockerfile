@@ -18,6 +18,8 @@ WORKDIR /app
 # Copy installed python packages from builder
 COPY --from=builder /root/.local /root/.local
 COPY api/ /app/api/
+COPY src/ /app/src/
+
 
 # Expose local user bin directory where uvicorn is installed
 ENV PATH=/root/.local/bin:$PATH

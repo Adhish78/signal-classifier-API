@@ -153,6 +153,9 @@ cython_debug/
 
 # Model build artifacts (ADR-0001)
 models/
+mlruns/
+reports/
+
 
 # IDEs
 .vscode/
