@@ -31,14 +31,17 @@ class InferenceEngine:
         if iq_data.dtype != np.float32:
             iq_data = iq_data.astype(np.float32)
 
-        # Perform z-score normalization per-sample and per-channel along the time steps dimension (axis 2)
+        # Perform z-score normalization per-sample and per-channel
+        # along the time steps dimension (axis 2)
         means = np.mean(iq_data, axis=2, keepdims=True)
         stds = np.std(iq_data, axis=2, keepdims=True)
         eps = 1e-10
         iq_data_normalized = (iq_data - means) / (stds + eps)
 
         # Run inference using the ONNX Runtime session
-        outputs = self.session.run([self.output_name], {self.input_name: iq_data_normalized})
+        outputs = self.session.run(
+            [self.output_name], {self.input_name: iq_data_normalized}
+        )
 
         # Cast/verify type for static analysis
         result: np.ndarray = outputs[0]
