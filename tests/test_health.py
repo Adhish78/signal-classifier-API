@@ -6,7 +6,11 @@ client = TestClient(app)
 
 
 def test_health_endpoint() -> None:
+    # Act: Query the API health check endpoint
     response = client.get("/health")
+
+    # Assert: Confirm HTTP 200 status and verify the payload attributes.
+    # Uptime must be non-negative, and the overall status should report "healthy".
     assert response.status_code == 200
 
     data = response.json()

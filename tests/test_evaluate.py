@@ -72,7 +72,7 @@ def create_mock_onnx_model(model_path: Path) -> None:
 def test_evaluate_pipeline_basic(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    # Arrange
+    # Arrange: Set up mock model and data files.
     pkl_path = tmp_path / "mock_dataset.pkl"
     create_mock_dataset(pkl_path)
 
@@ -81,20 +81,20 @@ def test_evaluate_pipeline_basic(
 
     output_dir = tmp_path / "reports"
 
-    # Mock MLflow to avoid actual logging/connections in this basic step
+    # Mock MLflow dependencies to avoid network connections during test runtime.
     monkeypatch.setattr("mlflow.start_run", mock_start_run)
     monkeypatch.setattr("mlflow.log_metrics", lambda *_args, **_kwargs: None)
     monkeypatch.setattr("mlflow.log_metric", lambda *_args, **_kwargs: None)
     monkeypatch.setattr("mlflow.log_artifact", lambda *_args, **_kwargs: None)
 
-    # Act
+    # Act: Trigger model evaluation.
     metrics = evaluate_model(
         model_path=str(model_path),
         data_path=str(pkl_path),
         output_dir=str(output_dir),
     )
 
-    # Assert
+    # Assert: Confirm basic accuracy limits.
     assert isinstance(metrics, dict)
     assert "accuracy" in metrics
     assert 0.0 <= metrics["accuracy"] <= 1.0
@@ -103,7 +103,7 @@ def test_evaluate_pipeline_basic(
 def test_evaluate_metrics_calculation(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    # Arrange
+    # Arrange: Setup mock model and dataset files.
     pkl_path = tmp_path / "mock_dataset.pkl"
     create_mock_dataset(pkl_path)
 
@@ -118,9 +118,13 @@ def test_evaluate_metrics_calculation(
     monkeypatch.setattr("mlflow.log_metric", lambda *_args, **_kwargs: None)
     monkeypatch.setattr("mlflow.log_artifact", lambda *_args, **_kwargs: None)
 
-    # Target mock predictions for the 22 test samples (sorted keys order):
+    # Setup target mock predictions for the 22 test samples in sorted keys order.
     target_preds = [0, 0, 1, 2, 2, 2, 3, 4, 4, 4, 5, 5, 6, 6, 7, 7, 8, 8, 9, 9, 10, 10]
 
+    # Mock InferenceEngine.predict to yield deterministic target predictions.
+    # Rationale: This isolates metrics calculations from model inference behavior,
+    # allowing us to test the exact arithmetic precision of macro and per-class
+    # metric calculations against hand-computed expected outputs.
     def mock_predict(_self: Any, iq_data: np.ndarray) -> np.ndarray:
         out = np.zeros((len(iq_data), len(MODULATION_CLASSES)), dtype=np.float32)
         for i, p in enumerate(target_preds[: len(iq_data)]):
@@ -129,24 +133,24 @@ def test_evaluate_metrics_calculation(
 
     monkeypatch.setattr(InferenceEngine, "predict", mock_predict)
 
-    # Act
+    # Act: Compute metrics.
     metrics = evaluate_model(
         model_path=str(model_path),
         data_path=str(pkl_path),
         output_dir=str(output_dir),
     )
 
-    # Assert overall accuracy
+    # Assert overall accuracy. Out of 22 samples, 20 are correct.
     assert pytest.approx(metrics["accuracy"]) == 20 / 22
 
-    # Assert macro metrics
+    # Assert macro metrics.
     assert pytest.approx(metrics["macro_precision"]) == (9 + 4 / 3) / 11
     assert pytest.approx(metrics["macro_recall"]) == 10 / 11
 
     expected_macro_f1 = (7 + 4 / 3 + 1.6) / 11
     assert pytest.approx(metrics["macro_f1"]) == expected_macro_f1
 
-    # Assert per-class metrics
+    # Assert per-class metrics.
     assert pytest.approx(metrics["class_8PSK_f1"]) == 1.0
     assert pytest.approx(metrics["class_AM-DSB_f1"]) == 2 / 3
     assert pytest.approx(metrics["class_AM-SSB_f1"]) == 0.8
@@ -158,7 +162,7 @@ def test_evaluate_metrics_calculation(
 def test_evaluate_local_reports(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    # Arrange
+    # Arrange: Setup mock files.
     pkl_path = tmp_path / "mock_dataset.pkl"
     create_mock_dataset(pkl_path)
 
@@ -173,14 +177,14 @@ def test_evaluate_local_reports(
     monkeypatch.setattr("mlflow.log_metric", lambda *_args, **_kwargs: None)
     monkeypatch.setattr("mlflow.log_artifact", lambda *_args, **_kwargs: None)
 
-    # Act
+    # Act: Generate reports and plots.
     evaluate_model(
         model_path=str(model_path),
         data_path=str(pkl_path),
         output_dir=str(output_dir),
     )
 
-    # Assert files exist and are not empty
+    # Assert: Verify that the local text files and PNG plots exist and are non-empty.
     report_path = output_dir / "classification_report.txt"
     cm_path = output_dir / "confusion_matrix.png"
     snr_path = output_dir / "snr_vs_accuracy.png"
@@ -194,7 +198,7 @@ def test_evaluate_local_reports(
 
 
 def test_evaluate_mlflow_logging(tmp_path: Path) -> None:
-    # Arrange
+    # Arrange: Setup mock data and local MLflow tracking
     os.environ["MLFLOW_ALLOW_FILE_STORE"] = "true"
     pkl_path = tmp_path / "mock_dataset.pkl"
     create_mock_dataset(pkl_path)
@@ -208,12 +212,12 @@ def test_evaluate_mlflow_logging(tmp_path: Path) -> None:
     mlflow_tracking_dir = tmp_path / "mlruns"
     mlflow.set_tracking_uri(f"file:///{mlflow_tracking_dir.as_posix()}")
 
-    # Create an initial training run to simulate logging to an existing run
+    # Create an initial training run to simulate logging to an existing run.
     mlflow.set_experiment("Test_Evaluation_MLflow")
     with mlflow.start_run() as run:
         run_id = run.info.run_id
 
-    # Act: run evaluate passing the run_id
+    # Act: run evaluate passing the run_id.
     evaluate_model(
         model_path=str(model_path),
         data_path=str(pkl_path),
@@ -222,7 +226,7 @@ def test_evaluate_mlflow_logging(tmp_path: Path) -> None:
         run_id=run_id,
     )
 
-    # Assert MLflow logged the metrics and artifacts
+    # Assert: Verify that MLflow logged metrics and artifacts in the run.
     client = mlflow.tracking.MlflowClient()
     run_data = client.get_run(run_id)
 
@@ -240,7 +244,7 @@ def test_evaluate_mlflow_logging(tmp_path: Path) -> None:
 
 
 def test_evaluate_cli_main(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    # Arrange
+    # Arrange: Setup mock data, mock model, and command-line arguments.
     pkl_path = tmp_path / "mock_dataset.pkl"
     create_mock_dataset(pkl_path)
 
@@ -269,8 +273,8 @@ def test_evaluate_cli_main(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> N
     monkeypatch.setattr("mlflow.log_metric", lambda *_args, **_kwargs: None)
     monkeypatch.setattr("mlflow.log_artifact", lambda *_args, **_kwargs: None)
 
-    # Act
+    # Act: Run evaluation via CLI main wrapper.
     cli_main()
 
-    # Assert
+    # Assert: Confirm CLI successfully ran the code and generated reports.
     assert (output_dir / "classification_report.txt").exists()

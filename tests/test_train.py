@@ -40,18 +40,18 @@ def create_mock_dataset(pkl_path: Path) -> None:
 
 
 def test_successful_training_run(tmp_path: Path) -> None:
-    # Arrange
+    # Arrange: Set up path configurations and mock data.
+    # We configure MLflow to use a local, isolated temporary directory
+    # to avoid writing test metrics into production run storage.
     os.environ["MLFLOW_ALLOW_FILE_STORE"] = "true"
     pkl_path = tmp_path / "mock_dataset.pkl"
 
     create_mock_dataset(pkl_path)
     output_dir = tmp_path / "models"
-
-    # Configure MLflow to use a temporary tracking directory for this test
     mlflow_tracking_dir = tmp_path / "mlruns"
     mlflow.set_tracking_uri(f"file:///{mlflow_tracking_dir.as_posix()}")
 
-    # Act
+    # Act: Run the training routine on the small mock dataset.
     train_model(
         data_path=str(pkl_path),
         epochs=2,
@@ -63,7 +63,7 @@ def test_successful_training_run(tmp_path: Path) -> None:
         seed=42,
     )
 
-    # Assert output files exist
+    # Assert: Verify all required files exist in the model destination.
     model_path = output_dir / "model.onnx"
     classifier_path = output_dir / "classifier.onnx"
     metadata_path = output_dir / "metadata.json"
@@ -72,7 +72,7 @@ def test_successful_training_run(tmp_path: Path) -> None:
     assert classifier_path.exists(), "classifier.onnx was not generated"
     assert metadata_path.exists(), "metadata.json was not generated"
 
-    # Verify metadata content
+    # Verify metadata JSON structure and keys match configuration contracts.
     with metadata_path.open(encoding="utf-8") as f:
         metadata = json.load(f)
 
@@ -86,19 +86,20 @@ def test_successful_training_run(tmp_path: Path) -> None:
 
 
 def test_early_stopping(tmp_path: Path) -> None:
-    # Arrange
+    # Arrange: Setup mock data and local MLflow tracking
     os.environ["MLFLOW_ALLOW_FILE_STORE"] = "true"
     pkl_path = tmp_path / "mock_dataset.pkl"
     create_mock_dataset(pkl_path)
     output_dir = tmp_path / "models"
 
-    # Configure MLflow
     mlflow_tracking_dir = tmp_path / "mlruns"
     mlflow.set_tracking_uri(f"file:///{mlflow_tracking_dir.as_posix()}")
 
-    # Act: Train with patience=2, epochs=10, and lr=0.0
-    # Since lr=0.0, weights do not change, validation loss remains
-    # constant and triggers early stopping.
+    # Act: Train with patience=2, epochs=10, and lr=0.0.
+    # Rationale: By setting the learning rate to exactly 0.0, the model weights
+    # remain frozen, preventing validation loss from improving. This forces
+    # the early stopping mechanism to trigger, verifying that training halts
+    # before reaching the 10-epoch limit.
     train_model(
         data_path=str(pkl_path),
         epochs=10,
@@ -110,8 +111,7 @@ def test_early_stopping(tmp_path: Path) -> None:
         seed=42,
     )
 
-    # Assert
-    # Verify that the MLflow run metrics history is less than 10 epochs
+    # Assert: Query MLflow metrics history to verify early stopping occurred.
     client = mlflow.tracking.MlflowClient()
     experiment = client.get_experiment_by_name("Test_Signal_Classifier_ES")
     assert experiment is not None
@@ -120,24 +120,22 @@ def test_early_stopping(tmp_path: Path) -> None:
     run_id = runs[0].info.run_id
 
     val_loss_history = client.get_metric_history(run_id, "val_loss")
-    # Early stopping should have triggered, so epochs run must be < 10
+    # Early stopping must halt epochs execution to less than 10
     assert len(val_loss_history) < 10
     assert len(val_loss_history) >= 2  # Must run at least 2 epochs to evaluate patience
 
 
 def test_mlflow_logging(tmp_path: Path) -> None:
-    # Arrange
+    # Arrange: Setup mock data and local MLflow tracking
     os.environ["MLFLOW_ALLOW_FILE_STORE"] = "true"
     pkl_path = tmp_path / "mock_dataset.pkl"
 
     create_mock_dataset(pkl_path)
     output_dir = tmp_path / "models"
-
-    # Configure MLflow
     mlflow_tracking_dir = tmp_path / "mlruns"
     mlflow.set_tracking_uri(f"file:///{mlflow_tracking_dir.as_posix()}")
 
-    # Act
+    # Act: Run training
     train_model(
         data_path=str(pkl_path),
         epochs=2,
@@ -149,18 +147,17 @@ def test_mlflow_logging(tmp_path: Path) -> None:
         seed=123,
     )
 
-    # Assert: Query MLflow Client
+    # Assert: Query the local MLflow Client to check logged data.
     client = mlflow.tracking.MlflowClient()
     experiment = client.get_experiment_by_name("Test_MLflow_Metrics")
     assert experiment is not None
     runs = client.search_runs(experiment_ids=[experiment.experiment_id])
     assert len(runs) >= 1, "Expected at least one training run"
 
-    # Let's find the active training run
     run = runs[0]
     run_id = run.info.run_id
 
-    # Verify params
+    # Verify logged hyperparameters
     params = run.data.params
     assert params["learning_rate"] == "0.005"
     assert params["batch_size"] == "8"
@@ -169,7 +166,7 @@ def test_mlflow_logging(tmp_path: Path) -> None:
     assert params["random_seed"] == "123"
     assert "device" in params
 
-    # Verify final run metrics
+    # Verify final summary metrics
     metrics = run.data.metrics
     assert "test_loss" in metrics
     assert "test_acc" in metrics
@@ -177,7 +174,7 @@ def test_mlflow_logging(tmp_path: Path) -> None:
     assert "best_val_loss" in params  # Best loss logged as parameter in our train.py
     assert "best_val_acc" in params
 
-    # Verify epoch metrics history
+    # Verify epoch-by-epoch training and validation history logs
     train_loss_history = client.get_metric_history(run_id, "train_loss")
     train_acc_history = client.get_metric_history(run_id, "train_acc")
     val_loss_history = client.get_metric_history(run_id, "val_loss")
@@ -188,24 +185,22 @@ def test_mlflow_logging(tmp_path: Path) -> None:
     assert len(val_loss_history) == 2
     assert len(val_acc_history) == 2
 
-    # Verify steps are logged correctly
+    # Verify epoch steps indexes are tracked correctly
     assert train_loss_history[0].step == 1
     assert train_loss_history[1].step == 2
 
 
 def test_onnx_model_properties(tmp_path: Path) -> None:
-    # Arrange
+    # Arrange: Setup mock data and local MLflow tracking
     os.environ["MLFLOW_ALLOW_FILE_STORE"] = "true"
     pkl_path = tmp_path / "mock_dataset.pkl"
 
     create_mock_dataset(pkl_path)
     output_dir = tmp_path / "models"
-
-    # Configure MLflow
     mlflow_tracking_dir = tmp_path / "mlruns"
     mlflow.set_tracking_uri(f"file:///{mlflow_tracking_dir.as_posix()}")
 
-    # Act
+    # Act: Train and export model
     train_model(
         data_path=str(pkl_path),
         epochs=1,
@@ -217,22 +212,21 @@ def test_onnx_model_properties(tmp_path: Path) -> None:
         seed=42,
     )
 
-    # Assert: Load ONNX model and run inference
+    # Assert: Load exported ONNX model and run inference to test properties.
     model_path = output_dir / "model.onnx"
-
     assert model_path.exists()
 
     session = ort.InferenceSession(str(model_path), providers=["CPUExecutionProvider"])
     input_name = session.get_inputs()[0].name
     output_name = session.get_outputs()[0].name
 
-    # Test batch size of 1
+    # Test batch size of 1. Output probabilities must sum to 1.0.
     input_data_1 = np.random.randn(1, 2, 128).astype(np.float32)
     output_1 = session.run([output_name], {input_name: input_data_1})[0]
     assert output_1.shape == (1, 11)
     assert np.allclose(np.sum(output_1, axis=1), 1.0, atol=1e-5)
 
-    # Test batch size of 5 (dynamic batch check)
+    # Test batch size of 5 (verifies dynamic batch size support on ONNX engine).
     input_data_5 = np.random.randn(5, 2, 128).astype(np.float32)
     output_5 = session.run([output_name], {input_name: input_data_5})[0]
     assert output_5.shape == (5, 11)

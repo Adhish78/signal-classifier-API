@@ -6,7 +6,12 @@ client = TestClient(app)
 
 
 def test_metadata_endpoint() -> None:
+    # Act: Query the API metadata endpoint
     response = client.get("/model/metadata")
+
+    # Assert: Verify that the endpoint reads the companion 'metadata.json'
+    # correctly, matching key attributes like model version, input shape,
+    # training accuracy, and the complete class category list.
     assert response.status_code == 200
 
     data = response.json()
