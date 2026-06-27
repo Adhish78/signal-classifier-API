@@ -31,7 +31,7 @@ def test_json_logging_middleware(caplog: pytest.LogCaptureFixture) -> None:
     # Verify that the middleware logged exactly one JSON record for this request.
     assert len(json_logs) == 1
     log = json_logs[0]
-    
+
     # Assert JSON payload fields conform to the structured logging schema layout.
     assert log["method"] == "GET"
     assert log["path"] == "/health"

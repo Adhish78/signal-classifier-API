@@ -12,7 +12,7 @@ def test_predict_endpoint_valid_shape() -> None:
     # Arrange & Act: Send a valid float array shape (2, 128) to the predict endpoint.
     valid_iq_data = [[0.1] * 128, [-0.1] * 128]
     response = client.post("/predict", json={"iq_data": valid_iq_data})
-    
+
     # Assert: Confirm response code is HTTP 200
     assert response.status_code == 200
 
@@ -45,7 +45,7 @@ def test_predict_endpoint_invalid_inner_shape() -> None:
 def test_predict_endpoint_empty_payload() -> None:
     # Act: Send empty request object
     response = client.post("/predict", json={})
-    
+
     # Assert: Verify request returns HTTP 422
     assert response.status_code == 422
 
@@ -62,7 +62,7 @@ def test_predict_endpoint_non_numeric_values() -> None:
 def test_predict_response_structure_and_logic() -> None:
     # Arrange: Setup valid payload
     valid_iq_data = [[0.1] * 128, [-0.1] * 128]
-    
+
     # Act: Query predict endpoint
     response = client.post("/predict", json={"iq_data": valid_iq_data})
     assert response.status_code == 200

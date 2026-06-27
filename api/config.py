@@ -4,11 +4,12 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     """
     Configuration settings for the Signal Classifier API.
-    
+
     Uses Pydantic Settings to automatically parse and validate configuration.
     This provides type safety (e.g. verifying port is an integer) and
     environment variable override capabilities.
     """
+
     app_name: str = "Signal Classifier API"
     host: str = "0.0.0.0"
     port: int = 8000

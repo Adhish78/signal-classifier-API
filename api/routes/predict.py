@@ -37,7 +37,7 @@ def predict(request: Request, prediction_request: PredictionRequest) -> dict[str
 
     engine = request.app.state.inference_engine
     app_state = request.app.state
-    
+
     try:
         # Measure model execution latency using high-resolution performance counters.
         # Failed inferences are excluded from average latency to avoid skewing.

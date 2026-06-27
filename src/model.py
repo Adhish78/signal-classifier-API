@@ -8,7 +8,7 @@ class SignalClassifier(nn.Module):
     """
     A 1D CNN architecture for RF signal modulation classification.
     Consists of 3 Conv1D blocks followed by global average pooling and a linear head.
-    
+
     Architectural Decisions:
     1. 1D Convolutions: Radio frequency (RF) IQ signals are 1D time-series data
        rather than 2D spatial images. 1D convolutions are used to extract local

@@ -79,7 +79,7 @@ def test_metrics_accumulation_and_failures(monkeypatch: pytest.MonkeyPatch) -> N
     # 1. Act: First prediction (expected latency = 15ms)
     resp1 = client.post("/predict", json={"iq_data": valid_iq_data})
     assert resp1.status_code == 200
-    
+
     # Assert: Verify initial metrics match 15.0ms latency
     m1 = client.get("/metrics").json()
     assert pytest.approx(m1["average_inference_time_ms"]) == 15.0
@@ -89,7 +89,7 @@ def test_metrics_accumulation_and_failures(monkeypatch: pytest.MonkeyPatch) -> N
     # 2. Act: Second prediction (expected latency = 25ms)
     resp2 = client.post("/predict", json={"iq_data": valid_iq_data})
     assert resp2.status_code == 200
-    
+
     # Assert: Verify rolling average equals 20.0ms, min=15.0ms, max=25.0ms
     m2 = client.get("/metrics").json()
     assert m2["total_predictions"] == 2

@@ -7,7 +7,7 @@ import onnxruntime as ort
 class InferenceEngine:
     """
     Wrapper around ONNX Runtime to handle RF signal classification inference.
-    
+
     Rationale:
     Using PyTorch in a web-serving environment is resource-heavy and introduces
     unnecessary memory overhead. Compiling to ONNX and serving via ONNX Runtime
