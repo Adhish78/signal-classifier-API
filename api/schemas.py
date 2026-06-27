@@ -19,6 +19,8 @@ EXPECTED_TIME_STEPS = 128
 
 
 class PredictionRequest(BaseModel):
+    # The raw input representation containing In-phase and Quadrature signals.
+    # Must be structured as a 2D float array of shape (2, 128).
     iq_data: list[list[float]] = Field(
         ..., description="Raw IQ data sample of shape (2, 128)"
     )
@@ -26,6 +28,11 @@ class PredictionRequest(BaseModel):
     @field_validator("iq_data")
     @classmethod
     def validate_iq_data_shape(cls, v: list[list[float]]) -> list[list[float]]:
+        # Rationale: The neural network is compiled to expect a fixed tensor shape
+        # of (batch_size, 2, 128). Validating the structure here ensures
+        # we catch malformed payloads at the API gateway layer and return
+        # a clean HTTP 422 validation error instead of crashing during ONNX
+        # session execution.
         if len(v) != EXPECTED_CHANNELS:
             raise ValueError(f"iq_data must have exactly {EXPECTED_CHANNELS} channels")
         for i, channel in enumerate(v):
@@ -34,6 +41,9 @@ class PredictionRequest(BaseModel):
                     f"Channel {i} must have exactly {EXPECTED_TIME_STEPS} elements"
                 )
             for j, val in enumerate(channel):
+                # JSON permits boolean types (true/false) which Python treats as
+                # numeric subclasses of integers. We explicitly reject booleans
+                # and non-numeric types to prevent ONNX session dtype casting errors.
                 if not isinstance(val, (int, float)) or isinstance(val, bool):
                     raise ValueError(
                         f"Value at channel {i}, index {j} must be a numeric value"

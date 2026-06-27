@@ -20,7 +20,11 @@ settings = Settings()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-    # Load the ONNX model inference engine on startup
+    # Load the ONNX model inference engine on startup.
+    # Rationale: Loading the ONNX session parses the graph and loads weights into
+    # memory, which is resource-intensive. Running this in the lifespan startup
+    # handler guarantees it executes exactly once, caching the InferenceEngine
+    # on app.state so all concurrent requests share the same thread-safe session.
     app.state.inference_engine = InferenceEngine(settings.model_path)
     yield
 
@@ -31,7 +35,9 @@ app = FastAPI(
 
 app.add_middleware(StructuredLoggingMiddleware)
 
-# Initialize application start time for uptime tracking
+# Initialize application global state parameters.
+# These variables track real-time telemetry metrics and are mutated during
+# request-response cycles. They are accessed by the /metrics endpoint.
 app.state.start_time = time.time()
 app.state.total_predictions = 0
 app.state.failed_predictions = 0

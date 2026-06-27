@@ -28,6 +28,11 @@ MODULATION_CLASSES = [
 
 @router.get("/model/metadata", response_model=ModelMetadataResponse)
 def get_model_metadata() -> dict[str, Any]:
+    # Rationale: Instead of hardcoding model characteristics (like list of classes,
+    # accuracy, or shape) inside the web API source code, we load them dynamically
+    # from the companion 'metadata.json' generated during the model training pipeline.
+    # This decouples the API service from the model, allowing model updates (e.g.
+    # support for new modulation classes) to be deployed seamlessly.
     settings = Settings()
     metadata_path = Path(settings.model_path).parent / "metadata.json"
 

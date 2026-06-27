@@ -22,30 +22,38 @@ metrics_lock = threading.Lock()
 
 @router.post("/predict", response_model=PredictionResponse)
 def predict(request: Request, prediction_request: PredictionRequest) -> dict[str, Any]:
-    # Convert input list to numpy array of shape (1, 2, 128)
+    # Convert input list to numpy array of shape (1, 2, 128).
+    # Rationale: The API accepts a single signal sample of shape (2, 128),
+    # but the ONNX model graph expects a batch dimension (batch_size, 2, 128).
+    # We expand the dimensions at axis 0 to form a batch of size 1.
     iq_data = np.array(prediction_request.iq_data, dtype=np.float32)
     iq_data_batched = np.expand_dims(iq_data, axis=0)
 
-    # Retrieve engine from app state or initialize if not already set (e.g. tests)
-
+    # Lazily initialize the inference engine if it was not loaded on startup
+    # (this fallback is primarily utilized during testing setup).
     if not hasattr(request.app.state, "inference_engine"):
         settings = Settings()
         request.app.state.inference_engine = InferenceEngine(settings.model_path)
 
     engine = request.app.state.inference_engine
-
     app_state = request.app.state
+    
     try:
+        # Measure model execution latency using high-resolution performance counters.
+        # Failed inferences are excluded from average latency to avoid skewing.
         start_time = perf_counter()
         output = engine.predict(iq_data_batched)
         latency_ms = (perf_counter() - start_time) * 1000.0
     except Exception:
+        # Lock during error states to thread-safely increment failed requests.
         with metrics_lock:
             if hasattr(app_state, "total_predictions"):
                 app_state.total_predictions += 1
                 app_state.failed_predictions += 1
         raise
 
+    # Mutate the application state telemetry properties.
+    # We acquire the lock to prevent write-hazards from concurrent API threads.
     with metrics_lock:
         if hasattr(app_state, "total_predictions"):
             old_total = app_state.total_predictions
@@ -60,6 +68,10 @@ def predict(request: Request, prediction_request: PredictionRequest) -> dict[str
                 app_state.min_inference_time_ms = latency_ms
                 app_state.max_inference_time_ms = latency_ms
             else:
+                # Numerically stable rolling average latency formula.
+                # Rationale: Accumulating absolute latency values in a running sum
+                # can eventually lead to precision loss or overflow over millions
+                # of requests. This iterative method computes a stable running mean.
                 old_avg = app_state.average_inference_time_ms
                 app_state.average_inference_time_ms = (
                     old_avg + (latency_ms - old_avg) / new_success

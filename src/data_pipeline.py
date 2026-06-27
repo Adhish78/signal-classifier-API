@@ -49,7 +49,9 @@ def load_and_split_data(
         raise ValueError("Split ratios must sum to 1.0")
 
     with Path(pkl_path).open("rb") as f:
-        # Load dataset dictionary using latin1 encoding
+        # Load dataset dictionary using latin1 encoding.
+        # The RML2016.10a pickle uses Python 2 string serialization keys,
+        # so loading in Python 3 requires the 'latin1' codec fallback.
         data = pickle.load(f, encoding="latin1")
 
     # Set random seed for reproducibility
@@ -59,7 +61,12 @@ def load_and_split_data(
     val_x_list, val_y_list, val_snr_list = [], [], []
     test_x_list, test_y_list, test_snr_list = [], [], []
 
-    # Sort keys to ensure deterministic processing order
+    # Sort keys to ensure deterministic processing order.
+    # The dictionary keys are tuples: (modulation_class_string, snr_integer_db).
+    # Stratified splitting is performed within each class-SNR group independently.
+    # This guarantees that each partition (train, val, test) contains the exact
+    # same proportion of classes and noise environments (SNR), preventing data
+    # distribution shift during validation and test evaluation.
     for key in sorted(data.keys()):
         cls_name, snr_val = key
         if cls_name not in MODULATION_CLASSES:
@@ -114,8 +121,16 @@ def load_and_split_data(
         snr = np.array(snr_list, dtype=np.float32)
 
         # Perform z-score normalization per-sample and per-channel independently.
-        # x shape is (N, 2, 128).
-        # We calculate mean and std along axis 2 (time step dimension).
+        # x shape is (N, 2, 128) representing (batch, channels, time_steps).
+        # We calculate mean and std along axis 2 (time step dimension) separately
+        # for each channel of every sample.
+        # Rationale: In RF propagation, signals experience varying path loss
+        # and channel gains (attenuation). Standardizing the mean to 0 and standard
+        # deviation to 1 removes absolute amplitude scaling variations, forcing
+        # the neural network to learn invariant phase and frequency modulation patterns
+        # rather than absolute signal strength.
+        # eps (1e-10) is added to standard deviation to avoid division by zero
+        # on flat or empty signals.
         means = np.mean(x, axis=2, keepdims=True)  # (N, 2, 1)
         stds = np.std(x, axis=2, keepdims=True)  # (N, 2, 1)
         eps = 1e-10

@@ -29,6 +29,14 @@ class ONNXWrapper(nn.Module):
     """
     Wrapper PyTorch module to append a Softmax activation to the outputs
     of the SignalClassifier model specifically for serving/ONNX export.
+
+    Rationale:
+    During offline training, PyTorch computes loss over raw logits using
+    nn.CrossEntropyLoss (which incorporates LogSoftmax internally for numerical
+    stability). However, for real-time inference, the client API expects
+    modulation probabilities that sum to 1.0. Appending Softmax(dim=1) to the
+    exported ONNX graph encapsulates this activation, keeping client-side
+    serving code clean and lightweight.
     """
 
     def __init__(self, model: nn.Module) -> None:
@@ -258,7 +266,8 @@ def train_model(  # noqa: PLR0913, PLR0915
         mlflow.log_param("best_val_loss", best_loss)
         mlflow.log_param("best_val_acc", best_val_acc)
 
-        # Export best model checkpoint to ONNX format
+        # Export best model checkpoint to ONNX format.
+        # This decouples inference serving from the PyTorch dependency.
         output_path = Path(output_dir)
         output_path.mkdir(parents=True, exist_ok=True)
 
@@ -270,14 +279,17 @@ def train_model(  # noqa: PLR0913, PLR0915
 
         export_model = ONNXWrapper(model)
         export_model.to(device)
-        export_model.eval()
+        export_model.eval()  # Disable dropout and batch-norm running updates
 
+        # Define dynamic shape mapping to allow serving variable batch sizes.
         # Input shape: (batch_size, 2, 128)
         dummy_input = torch.randn(1, 2, 128, device=device)
-
         batch_dim = torch.export.Dim("batch_size", min=1)
         dynamic_shapes = {"x": {0: batch_dim}}
 
+        # Export using PyTorch 2.x Dynamo-based ONNX exporter.
+        # opset_version=18 is used to ensure compatibility with modern
+        # features like dynamic batch dimensions and standard layer operations.
         torch.onnx.export(
             export_model,
             (dummy_input,),
@@ -291,7 +303,9 @@ def train_model(  # noqa: PLR0913, PLR0915
             dynamo=True,
         )
 
-        # Generate metadata.json
+        # Generate metadata.json to describe target output labels and training metrics.
+        # This allows serving APIs to dynamically map predicted indexes back to
+        # modulation classes without hardcoding them in the server source code.
         metadata = {
             "model_version": "1.0.0",
             "framework": "ONNX",
@@ -306,11 +320,12 @@ def train_model(  # noqa: PLR0913, PLR0915
         with metadata_file_path.open("w", encoding="utf-8") as f:
             json.dump(metadata, f, indent=4)
 
-        # Log artifacts to MLflow
+        # Log compiled model and metadata artifacts to MLflow
         mlflow.log_artifact(str(onnx_file_path))
         mlflow.log_artifact(str(metadata_file_path))
 
-        # Copy model.onnx to classifier.onnx for default API config compatibility
+        # Copy model.onnx to classifier.onnx for default API config compatibility.
+        # This acts as the default model endpoint target loaded by the FastAPI app.
         classifier_file_path = output_path / "classifier.onnx"
         shutil.copy2(onnx_file_path, classifier_file_path)
         logger.info(

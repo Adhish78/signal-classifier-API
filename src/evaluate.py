@@ -85,7 +85,13 @@ def _save_local_reports(
     fig.savefig(cm_path, dpi=150)
     plt.close(fig)
 
-    # 3. SNR-vs-accuracy curves
+    # 3. SNR-vs-accuracy curves.
+    # Rationale: Overall accuracy on the test set does not tell the whole story.
+    # In RF applications, it is critical to know how the model performs under
+    # varying noise conditions. By grouping the test predictions and ground truths
+    # by discrete SNR decibel thresholds, we can plot a performance curve.
+    # This helps engineers visualize the exact noise threshold (in dB) where
+    # the classifier's performance degrades or succeeds.
     unique_snrs = sorted(np.unique(snr_test))
     overall_accs = []
     per_class_accs: dict[str, list[float]] = {c: [] for c in MODULATION_CLASSES}

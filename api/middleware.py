@@ -11,6 +11,15 @@ logger = logging.getLogger("api.middleware")
 
 
 class JSONFormatter(logging.Formatter):
+    """
+    Custom log formatter that outputs log entries as structured JSON strings.
+    
+    Rationale:
+    In modern cloud environments, unstructured plain text logs are hard to parse.
+    Formatting logs as JSON allows centralized log aggregators (e.g., Datadog,
+    ELK stack, Splunk) to automatically index key fields (like log levels,
+    timestamps, and custom request details) without requiring complex regex rules.
+    """
     def format(self, record: logging.LogRecord) -> str:
         try:
             log_data = json.loads(record.getMessage())
@@ -32,6 +41,10 @@ class JSONFormatter(logging.Formatter):
 
 
 class StructuredLoggingMiddleware(BaseHTTPMiddleware):
+    """
+    Middleware to intercept all HTTP requests, measure their total execution
+    latency, and log a structured JSON summary.
+    """
     async def dispatch(
         self, request: Request, call_next: RequestResponseEndpoint
     ) -> Response:

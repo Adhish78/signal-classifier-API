@@ -10,6 +10,7 @@ router = APIRouter()
 
 @router.get("/health")
 def health_check(request: Request, response: Response) -> dict[str, str | bool | float]:
+    # Calculate server uptime.
     start_time = getattr(request.app.state, "start_time", time.time())
     uptime = time.time() - start_time
 
@@ -30,6 +31,10 @@ def health_check(request: Request, response: Response) -> dict[str, str | bool |
         and hasattr(inference_engine, "session")
     )
 
+    # Rationale: Container orchestrators (e.g., Kubernetes liveness/readiness probes,
+    # AWS ECS health checks) query this endpoint periodically. If the model file is
+    # missing or the ONNX Runtime session fails to boot, returning HTTP 503 causes
+    # the load balancer to stop routing client requests to this unhealthy container.
     if not model_loaded:
         response.status_code = status.HTTP_503_SERVICE_UNAVAILABLE
         return {

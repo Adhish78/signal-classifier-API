@@ -9,6 +9,9 @@ router = APIRouter()
 
 @router.get("/metrics", response_model=PredictionMetrics)
 def get_metrics(request: Request) -> dict[str, float | int]:
+    # Rationale: This endpoint exposes the current server state metrics to allow
+    # monitoring infrastructure (e.g. Prometheus scrapers, Datadog agents) to
+    # query server metrics, latency profiles, and error ratios in real-time.
     app_state = request.app.state
     uptime = time.time() - getattr(app_state, "start_time", time.time())
 
