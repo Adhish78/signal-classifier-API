@@ -24,7 +24,11 @@ services:
       - "5000:5000"
     volumes:
       - mlflow_data:/mlflow
-    command: mlflow server --host 0.0.0.0 --port 5000 --backend-store-uri sqlite:///mlflow/mlflow.db --default-artifact-root /mlflow/artifacts
+    # Note: We use --serve-artifacts and --artifacts-destination to enable artifact proxying.
+    # This allows host-side clients running outside the docker container to upload artifacts
+    # (reports/plots) to the tracking server over HTTP, instead of trying to write directly
+    # to the container's isolated local filesystem path.
+    command: mlflow server --host 0.0.0.0 --port 5000 --backend-store-uri sqlite:///mlflow/mlflow.db --artifacts-destination /mlflow/artifacts --serve-artifacts
 
 volumes:
   mlflow_data:
